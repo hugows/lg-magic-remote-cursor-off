@@ -1,0 +1,21 @@
+#!/bin/sh
+# Reapply the memory-only patch after boot or an input service restart.
+TASK_DIR=/home/root/magic-pointer
+LOCK_DIR=/tmp/lg-pointer-native.lock
+mkdir "$LOCK_DIR" 2>/dev/null || exit 0
+(
+    trap 'rmdir "$LOCK_DIR"' EXIT
+    last_pid=
+    while :; do
+        current_pid=$(pidof lginput2)
+        if [ -n "$current_pid" ] && [ "$current_pid" != "$last_pid" ]; then
+            if python3 "$TASK_DIR/pointer_patch.py"; then
+                last_pid=$current_pid
+            else
+                echo "Patch failed; stopping rather than retrying automatically."
+                exit 1
+            fi
+        fi
+        sleep 5
+    done
+) >>"$TASK_DIR/native-patch.log" 2>&1 </dev/null &
